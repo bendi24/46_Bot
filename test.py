@@ -26,10 +26,10 @@ async def send_poll_answer(author, poll, msg):
     await msg.unpin()
 
 
-async def send_poll_reminder(participants, poll):
+async def send_poll_reminder(participants, poll, time):  # Mindenkinek küld egy emlékeztetőt
     for person in participants:
-        await person.send("# Még nem szavaztál!\n")
         await person.send(poll)
+        await person.send(f"# Még nem szavaztál!\nMár csak {time/(60*60)} óra van hátra a szavazás végig!\n")
 
 
 # Runs when Bot Succesfully Connects
@@ -37,20 +37,23 @@ async def send_poll_reminder(participants, poll):
 async def on_ready():
     print(f'{bot.user} succesfully logged in!')
 
+
 # !poll
 @bot.command()
-async def square(ctx, arg): # The name of the function is the name of the command
-    print(arg) # this is the text that follows the command
-    await ctx.send(int(arg) ** 2) # ctx.send sends text in chat
-
-
-@bot.command()
 async def poll(ctx, question, deadline, role: discord.Role, *options):
+    """
+    Szavazás indítása
+    :param ctx:
+    :param question: A kérdés
+    :param deadline: Határidő órában megadva
+    :param role: A szavazásban résztvevők rangjának megadása
+    :param options: A lehetőségek felsorolása ","-vel elválasztva
+    """
     await ctx.channel.purge(limit=1)
     options = list(options[0].split(" ,"))
 
-    #a rang szerinti résztvevők kilistázása
-    participants = role.members
+    # A rang szerinti résztvevők kilistázása
+    participants = role.members  # hiba lehet ha nem létező rangot kap, nem lehet több rangot megadni
 
     message = [["\n----------\n", question, "\n----------"]]
     for i in options:
@@ -58,10 +61,10 @@ async def poll(ctx, question, deadline, role: discord.Role, *options):
         message.append([i, ".", e, ":"])
         emoji_list.remove(str(e))
     message_str = ""
-    for l in message:
+    for part in message:
         # for k in l:
         #     message_str += k + ""
-        message_str += l
+        message_str += part
         message_str += "\n\n"
     yeet = await ctx.send("```" + message_str + "```")
     await yeet.pin()
@@ -77,8 +80,10 @@ async def poll(ctx, question, deadline, role: discord.Role, *options):
         run_at = now + datetime.timedelta(hours=float(deadline))
         delay = (run_at - now).total_seconds()
 
+        # időzített események bállítása
         days = delay//(24*60*60)
         for i in range(int(days)):
-            threading.Timer(i*24*60*60, await send_poll_reminder(participants, message_str)).start()
+            threading.Timer(i*24*60*60, await send_poll_reminder(participants, message_str, delay)).start()
         threading.Timer(delay, await send_poll_answer(author, message_str, yeet)).start()
+
 bot.run(TOKEN)
