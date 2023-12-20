@@ -25,6 +25,13 @@ async def send_poll_answer(author, poll, msg):
     await author.send(reacts)
     await msg.unpin()
 
+
+async def send_poll_reminder(participants, poll):
+    for person in participants:
+        await person.send("# Még nem szavaztál!\n")
+        await person.send(poll)
+
+
 # Runs when Bot Succesfully Connects
 @bot.event
 async def on_ready():
@@ -38,24 +45,28 @@ async def square(ctx, arg): # The name of the function is the name of the comman
 
 
 @bot.command()
-async def poll(ctx, question, deadline, *options):
+async def poll(ctx, question, deadline, role: discord.Role, *options):
     await ctx.channel.purge(limit=1)
-    options = list(options[0].split(","))
+    options = list(options[0].split(" ,"))
+
+    #a rang szerinti résztvevők kilistázása
+    participants = role.members
 
     message = [["\n----------\n", question, "\n----------"]]
     for i in options:
         e = random.choice(emoji_list)
-        message.append([i, ":", e])
+        message.append([i, ".", e, ":"])
         emoji_list.remove(str(e))
     message_str = ""
     for l in message:
-        for k in l:
-            message_str += k + ""
+        # for k in l:
+        #     message_str += k + ""
+        message_str += l
         message_str += "\n\n"
     yeet = await ctx.send("```" + message_str + "```")
     await yeet.pin()
     for j in range(1, len(message)):
-        await yeet.add_reaction(message[j][-1])
+        await yeet.add_reaction(message[j][2])
 
     if deadline == "0" or 0:
         print("Nincs határidő beállítva!")
@@ -65,5 +76,9 @@ async def poll(ctx, question, deadline, *options):
         now = datetime.datetime.now()
         run_at = now + datetime.timedelta(hours=float(deadline))
         delay = (run_at - now).total_seconds()
+
+        days = delay//(24*60*60)
+        for i in range(int(days)):
+            threading.Timer(i*24*60*60, await send_poll_reminder(participants, message_str)).start()
         threading.Timer(delay, await send_poll_answer(author, message_str, yeet)).start()
 bot.run(TOKEN)
